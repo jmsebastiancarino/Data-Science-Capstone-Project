@@ -52,18 +52,28 @@ twitter <- sample_n(twitter, 10000, replace = FALSE)
 ```
 
 
+Tokenization is a process of breaking sentences into individual words. I did the following:
+
+1. I specified the unit for splitting (denoted by argument, what) to "word".
+2. I removed the numbers, punctuations, symbols, separators, hyphens, and url. For twitter data, I also removed twitter characters @ and #. 
+3. I removed the English stopwords. I set the padding to FALSE so that, there will be no empty string. 
+4. I set the minimum character to 2 so that, no single letter will be tokenize. 
 
 ```{r tokenization}
 # Tokenization
 blogs_token <- tokens(blogs$Blogs, what = "word", remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove_separators = TRUE, remove_hyphens = TRUE, remove_url = TRUE) %>%
-                  tokens_remove(stopwords("english"), padding = FALSE, min_nchar = 2)
+                  tokens_remove(stopwords("en"), padding = FALSE, min_nchar = 2)
 
 news_token <- tokens(news$News, what = "word", remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove_separators = TRUE, remove_hyphens = TRUE, remove_url = TRUE) %>%
-                  tokens_remove(stopwords("english"), padding = FALSE, min_nchar = 2)
+                  tokens_remove(stopwords("en"), padding = FALSE, min_nchar = 2)
 
-twitter_token <- tokens(twitter$Tweet, what = "word", remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove_separators = TRUE, remove_hyphens = TRUE, remove_url = TRUE, remove_twitter = TRUE) %>%
-                  tokens_remove(stopwords("english"), padding = FALSE, min_nchar = 2)
+twitter_token <- tokens(twitter$Tweet, what = "word", remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove_separators = TRUE, remove_hyphens = TRUE, remove_url = TRUE, remove_twitter = TRUE) %>% tokens_remove(stopwords("en"), padding = FALSE, min_nchar = 2)
 
+```
+
+After tokenization, I extracted the words from the token. In doing so, I made three sets: one-gram, two-gram, and three-gram. I have set all words to lowercase to be consistent and have specified stem to TRUE so that, R will get the root word. Once it is done, I stored it to document-feature matrix. 
+
+```{Grams}
 # One gram
 blogs_t1 <- blogs_token %>%
               tokens_ngrams(n = 1) %>%
@@ -107,41 +117,35 @@ twitter_t3 <- twitter_token %>%
 
 ## <b> Exploratory Data Analysis </b>
 
-After pre-processing, the top features of one-gram or words are as follows:
+After processing, we can do the exploration. In our first exploration, we will extract the top 50 features for each gram. 
 
-```{r }
-# Extracting the top 50 words (1-gram)
-top50_news_1g <- topfeatures(news_t1, n = 50) %>%
-          data.frame() %>%
-          rownames_to_column()
+```{r features}
+# Creating top 50 features function
+top_n_features <- function(x, n){
+    # x is a dfm
+    # n is the number of features to extract (e.g. if top 50, then n = 50)
+    features <- topfeatures(x, n) %>%
+                  data.frame() %>%
+                  rownames_to_column()
+  }
 
-top50_blogs_1g <- topfeatures(blogs_t1, n = 50) %>%
-               data.frame() %>%
-               rownames_to_column()
 
-top50_twitter_1g <- topfeatures(twitter_t1, n = 50) %>%
-                 data.frame() %>%
-                 rownames_to_column()
+# Extracting the top 50 words (one-gram)
+topblogs_1g <- top_n_features(blogs_t1, 50)
+topnews_1g <- top_n_features(news_t1, 50)
+toptwitter_1g <- top_n_features(twitter_t1, 50)
 
 # Showing the top 50 words
-top50_news_1g
-top50_blogs_1g
-top50_twitter_1g
+textplot_wordcloud(topblogs_1g)
+
 ```
+
 
 ```{r }
 # Extracting the top 50 words (2-gram)
-top50_news_2g <- topfeatures(news_t2, n = 50) %>%
-                  data.frame() %>%
-                  rownames_to_column()
-
-top50_blogs_2g <- topfeatures(blogs_t2, n = 50) %>%
-                  data.frame() %>%
-                  rownames_to_column()
-
-top50_twitter_2g <- topfeatures(twitter_t2, n = 50) %>%
-                    data.frame() %>%
-                    rownames_to_column()
+topblogs_2g <- top_n_features()
+topnews_2g <- top_n_features()
+toptwitter_2g <- top_n_features()
 
 # Showing the top 50 words
 top50_news_2g
@@ -152,17 +156,9 @@ top50_twitter_2g
 
 ```{r }
 # Extracting the top 50 words (3-gram)
-top50_news_3g <- topfeatures(news_t3, n = 50) %>%
-                 data.frame() %>%
-                 rownames_to_column()
-
-top50_blogs_3g <- topfeatures(blogs_t3, n = 50) %>%
-                  data.frame() %>%
-                  rownames_to_column()
-
-top50_twitter_3g <- topfeatures(twitter_t3, n = 50) %>%
-                    data.frame() %>%
-                    rownames_to_column()
+topblogs_3g <- top_n_features()
+topnews_3g <- top_n_features()
+toptwitter_3g <- top_n_features()
 
 # Showing the top 50 words
 top50_blogs_3g
@@ -170,3 +166,5 @@ top50_news_3g
 top50_twitter_3g
 ```
 
+
+## <b> Plans for Building the Model and App </b>
