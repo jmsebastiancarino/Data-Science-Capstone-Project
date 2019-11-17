@@ -260,22 +260,3 @@ In model building, I will use Naive Bayes' model. It is a classifier based on th
 
 In the Shiny Web App, I plan to make the design be a simple one. The Web shall consist of the introduction, brief summary of the web, and a text field where the user will enter the text. Under the text field, the prediction will also happen based on the Naive Bayes model I plan to build using the combined data - blogs, news, and twitter. In the next coming weeks, I plan to research more about search engines and how text prediction is built on them. 
 
-
-## <b> Prediction Function </b>
-
-```{r predict function}
-textpredict <- function(x){
-  ## Convert the input into class character
-  x <- as.character(x)
-  
-  ## Predict the text given by the input
-  
-  
-  ## Output
-  
-  
-}
-
-```
-
-
