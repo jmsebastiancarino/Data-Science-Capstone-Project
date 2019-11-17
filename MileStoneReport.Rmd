@@ -1,0 +1,281 @@
+---
+title: "Mile Stone Report"
+author: "Juan Mari Sebastian Carino"
+date: "March 9, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+## <b> Descriptive Analysis </b> 
+
+Before I start with my analysis, I load first the essential libraries that I would need. 
+```{r libraries}
+library(tidyverse)
+library(tidytext)
+library(glue)
+library(data.table)
+library(readr)
+library(quanteda)
+library(stopwords)
+library(SnowballC)
+library(spacyr)
+```
+
+Based on my research, these are steps in performing Natural Language Processing which I intend to follow throughout finishing the capstone project:
+
+1. Sentence Segmentation - break the text apart into separate sentences. 
+2. Word Tokenization - break sentences into separate words
+3. Predicting Parts of Speech for each Token
+4. Text lemnatization - figure out the most basic form of each word in a sentence. 
+5. Identifying the stop words 
+6. Dependency Parsing - figure out how all the words in a sentence relate to each other. 
+7. Finding Noun Phrases
+8. Named Entity Recognition - detect and label these nouns with the real-world concepts that they represent. 
+9. Conference Resolution - figure out all the words that are referring to the same entity. 
+
+
+I have manually downloaded the data in Coursera and thereafter, unzipped it in my computer. In loading the data, I used the readLines function and convert to a data frame. In this way, every text is stored in one row. 
+
+```{r data}
+blogs <- readLines(con=file("~/Ambitions and Realities (Data Science, Career, Study Abroad)/Coursera/Data Science Specialization/Data Science Capstone/en_US.blogs.txt", open = "rt"))
+colnames(blogs) <- "Blogs"
+
+news <- readLines(con=file("~/Ambitions and Realities (Data Science, Career, Study Abroad)/Coursera/Data Science Specialization/Data Science Capstone/en_US.news.txt", open = "rt"))
+colnames(news) <- "News"
+
+twitter <- readLines(con=file("~/Ambitions and Realities (Data Science, Career, Study Abroad)/Coursera/Data Science Specialization/Data Science Capstone/en_US.twitter.txt", open = "rt"))
+colnames(twitter) <- "Tweet"
+```
+
+The structure of our data, blogs, news, and twitter consist of one column but with many observations. 
+The number of rows for each data is shown below: 
+```{r nrows}
+data.frame(blogs = nrow(blogs), news = nrow(news), twitter = nrow(twitter), row.names = "No. of observations")
+```
+
+### <b> Corpus </b> 
+Following the NLP Process, I constructed corpus objects. 
+
+```{r Corpus Object}
+blogs_corpus <- corpus(blogs$Blogs)
+news_corpus <- corpus(news$News)
+twitter_corpus <- corpus(twitter$Tweet)
+```
+
+### <b> Sampling </b>
+Because processing the entire dataset considers a considerable huge amount of time and given that the computer can process on a certain limit number of observations, I gathered 20,000 random samples from each dataset. By taking only the samples, data analysis can be done faster and efficiently. 
+
+```{r sampling}
+blogs_corpus <- corpus_sample(blogs_corpus, size = 20000, replace = FALSE)
+news_corpus <- corpus_sample(news_corpus, size = 20000, replace = FALSE)
+twitter_corpus <- corpus_sample(twitter_corpus, size = 20000, replace = FALSE)
+```
+
+The corpus function of quanteda is smart enough to identify sentences in a given text. Using the summary function in a corpus object, R will show the text (the observation), types (the number of unique tokens in a text), tokens (the number of words), and sentences. We are going to extract the sum of types, tokens, and sentences in each dataset. 
+
+
+```{r Illustration}
+blogs_summary <- summary(blogs_corpus, tolower = TRUE, n = 20000)
+news_summary <- summary(news_corpus, tolower = TRUE, n = 20000)
+twitter_summary <- summary(twitter_corpus, tolower = TRUE, n = 20000)
+
+list(Blogs = colSums(blogs_summary[, 2:4]), News = colSums(news_summary[, 2:4]), Twitter = colSums(twitter_summary[, 2:4]))
+```
+
+Based on the list, blogs dataset contains the most number of types, tokens, and sentences while twitter dataset contains the least number on these. This is true because blogs and news often contains articles which are usually composed of paragraphs and a number of non-conversational words. Twitter, on the other hand is mostly used on posting statuses and limits the number of characters (160 max.). Most of the users of Twitter write phrases and use conversational words. 
+
+### <b> Tokenization, Text Lemnatization, and Stopwords Removal </b>
+
+I am going to look into the POS (Parts of Speech) by segmenting the sentence in the next coming weeks since I am currently encountering problems in installing and using spacyr package. 
+
+The next step in our NLP is tokenizing. In tokenizing, we are going to break sentences into words. After that, we are going to extract the stem word (e.g. the word lining = line). After that, we are going to remove noises in our text analysis which is stop words such as prepositions, punctuations, conjunctions, and other words based on the corpora. 
+
+```{r tokens - word}
+blogs_tokens <- tokens(blogs_corpus, what = "word", remove_punc = TRUE, remove_numbers = TRUE, remove_symbols = FALSE, remove_url = TRUE, remove_separators = TRUE)
+
+news_tokens <- tokens(news_corpus, what = "word", remove_punc = TRUE, remove_numbers = TRUE, remove_symbols = FALSE, remove_url = TRUE, remove_separators = TRUE)
+
+twitter_tokens <- tokens(twitter_corpus, what = "word", remove_punc = TRUE, remove_numbers = TRUE, remove_symbols = FALSE, remove_url = TRUE, remove_separators = TRUE)
+```
+
+Next, we are going to take the stem of the word after converting the text into lowercase.
+
+```{r text lemnatization}
+blogs_tokens <- blogs_tokens %>%
+                  tokens_tolower() %>%
+                  tokens_wordstem(language = "english")
+
+news_tokens <- news_tokens %>%
+                  tokens_tolower() %>%
+                  tokens_wordstem(language = "english")
+
+twitter_tokens <- twitter_tokens %>%
+                  tokens_tolower() %>%
+                  tokens_wordstem(language = "english")
+```
+
+Next, we are going to remove the stopwords and set the minimum character to 2 so that, words which contain only single letter will be ommitted.
+```{r stopwords removal}
+blogs_tokens <- blogs_tokens %>%
+                  tokens_remove(stopwords(language = "en", source = "snowball"), min_nchar = 2)
+
+news_tokens <- news_tokens %>%
+                  tokens_remove(stopwords(language = "en", source = "snowball"), min_nchar = 2)
+
+twitter_tokens <- twitter_tokens %>%
+                  tokens_remove(stopwords(language = "en", source = "snowball"), min_nchar = 2)
+```
+
+Next, we are going to extract one-gram. 
+
+```{r ngram}
+blogs_tokens <- blogs_tokens %>%
+                tokens_ngrams(n = 1, concatenator = " ")
+
+news_tokens <- news_tokens %>%
+                tokens_ngrams(n = 1, concatenator = " ")
+
+twitter_tokens <- twitter_tokens %>%
+                tokens_ngrams(n = 1, concatenator = " ")
+```
+
+## <b> Data Exploration </b> 
+Now that the processing is done, I am going to explore the data per dataset. 
+
+In extracting the top features, I have created a function top_n_features where the argument is dfm and number of features. 
+
+```{r top_n_features}
+top_n_features <- function(x, n){
+    # x is a dfm
+    # n is the number of features to extract (e.g. if top 50, then n = 50)
+    features <- topfeatures(x, n) %>%
+                  data.frame() %>%
+                  rownames_to_column()
+    colnames(features) <- c("Words", "Counts")
+    as.data.frame(features)
+        
+  }
+```
+
+### <b> Blogs </b>
+
+The summary statistics of our blogs sample data is shown below. The features are the characters or words/tokens we have generated. There are 34,778 words in our blogs sample. The frequency is the number of occurrences the feature appeared in the text. The maximum frequency is 3,054 and minimum is 1. The features have rank as well with 1 having the greatest frequency. The docfreq is the document frequency indicating how many times the feature appeared in the document (In other words, for 20,000 sample data we have, how many times the feature or token appeared in 20,000 samples). For example, the word "great" appeared in 2,000 samples then the docfreq is 2,000. Back to our summary, the maximum is 2,457 and minimum is 1. The group is ignored since these features are all grouped in blogs sample data. 
+
+```{r summary statistics blogs}
+blogs_freq <- blogs_tokens %>% 
+                dfm() %>%
+                textstat_frequency()
+
+summary(blogs_freq)
+```
+
+Here is a histogram showing the frequency of our data. It can be seen that most of the features that we have extracted occurred only a number of times indicating that the words in the blog are unique and non-repetitive. 
+```{r hist freq blogs}
+ggplot(blogs_freq) + geom_histogram(aes(x = frequency))
+```
+
+Here is the top 30 features in the blog sample dataset. It can be observed that the words here are one, like, time, can, just, get, go, day, and so on. It can be inferred from these histogram that the frequent words are the subject of the blog posts and that the blog posts are usually written in active form since the author usually post blogs about his/her opinion about an issue, reports interesting topic or trends, and shares daily life things. 
+
+```{r top blogs}
+top_blogs <- blogs_tokens %>%
+                dfm() %>%
+                top_n_features(n = 30)
+
+ggplot(top_blogs) + geom_bar(aes(x = reorder(Words, Counts), y = Counts), stat = "identity") + xlab("Words") + coord_flip()
+
+blogs_dfm <- dfm(blogs_tokens)
+textplot_wordcloud(blogs_dfm, max_words = 100, color = "green")
+```
+
+### <b> News </b> 
+
+The summary statistics of the news sample dataset is shown below. I have generated 33,760 words. The maximum frequency is 5,069. The maximum document frequency is 4,626. Based on this statistics, we can infer that news has numerous words because the composition of news is paragraphs which is composed of a number of sentences and non-repetitive, non-conversational words.  
+
+```{r summary statistics news}
+news_freq <- news_tokens %>%
+              dfm() %>%
+              textstat_frequency()
+
+summary(news_freq)
+```
+
+The distribution of frequency of news sample dataset is shown below. The frequency for most of the features are 1. We can infer that most of the features/words we have extracted excluding the stopwords are non-conversational words (words which are used commonly in writing). 
+
+```{r freq news}
+ggplot(news_freq, aes(x = frequency)) + geom_histogram()
+```
+
+The top 30 words are shown below. It can be seen that the word "said" is the most frequent word. This is very obvious because news usually report statements and dialogues from key persons such as government officials and personnels, actors and actresses, and citizens. It can be seen as well the distance of counts of said to the other words. It can be inferred that these words are usually the topics or used in headlines of news such as year, new, time, state, people, work, school, and so on. 
+
+```{r top news}
+top_news <- news_tokens %>%
+              dfm() %>%
+              top_n_features(n = 30)
+
+ggplot(top_news) + geom_bar(aes(x = reorder(Words, Counts), y = Counts), stat = "identity") + xlab("Words") + coord_flip()
+
+news_dfm <- dfm(news_tokens)
+news_wc <- textplot_wordcloud(news_dfm, min_size = 1.25, max_size = 3, max_words = 100, color = "black")
+```
+
+### <b> Twitter </b>
+
+The summary statistics for twitter sample data is shown below. The number of words/feature is only 18,290 which is considerably lower than the news sample data and blogs sample data. This is because the number of characters that can be entered in twitter is limited 160 characters. Hence, a single tweet can have a limited number of words. The maximum frequency of words is 1,306. The maximum document frequency is 1,250. 
+
+```{r summary statistics twitter}
+twitter_freq <- twitter_tokens %>%
+                  dfm() %>%
+                  textstat_frequency
+
+summary(twitter_freq)
+```
+
+The frequency of the words is shown below. Initially, I was expecting the frequency to have an increase but the result showed differently. I can infer that most of the words in twitter are conversational and may more likely contain stopwords in which we just eliminated during the preprocessing. 
+
+```{r freq twitter}
+ggplot(twitter_freq, aes(x = frequency)) + geom_histogram()
+```
+
+Below is the histogram of the top 30 words in twitter sample dataset. It can be observed that the frequent words are get, just, thank, go, like, love, day, good, and so on. This is because these words are everyday words and conversational ones. Compared with the news and blogs dataset, the frequency of everyday and conversation words in twitter is much higher due to the nature of twitter being a social media platform.  
+
+```{r top twitter}
+top_twitter <- twitter_tokens %>%
+                dfm() %>%
+                top_n_features(n = 30)
+
+ggplot(top_twitter) + geom_bar(aes(x = reorder(Words, Counts), y = Counts), stat = "identity") + xlab("Words") + coord_flip() 
+
+twitter_dfm <- dfm(twitter_tokens)
+twitter_wc <- textplot_wordcloud(twitter_dfm, max_words = 100, color = "navy blue")
+```
+
+
+## <b> Next: Model Building and Shiny Web App </b>
+In model building, I will use Naive Bayes' model. It is a classifier based on the number of its occurrences in the data and not on the correlation. It is commonly used in text data and uses probabilitic learning method meaning the probability it will occur. Under this model, I plan to incorporate also parts of speech (POS) so that, predictions will be more accurate and organized (e.g. SUBJECT - VERB - PREDICATE). I expect that this model will perform similarly with other search engines. 
+
+In the Shiny Web App, I plan to make the design be a simple one. The Web shall consist of the introduction, brief summary of the web, and a text field where the user will enter the text. Under the text field, the prediction will also happen based on the Naive Bayes model I plan to build using the combined data - blogs, news, and twitter. In the next coming weeks, I plan to research more about search engines and how text prediction is built on them. 
+
+
+## <b> Prediction Function </b>
+
+```{r predict function}
+textpredict <- function(x){
+  ## Convert the input into class character
+  x <- as.character(x)
+  
+  ## Predict the text given by the input
+  
+  
+  ## Output
+  
+  
+}
+
+```
+
+
